@@ -86,6 +86,13 @@ Draws the light with its currently set color (ignoring love.graphics.setColor)
 and additive blending by default.
 
 ```lua
+light:getMaxRadius()
+```
+
+Returns the maximum radius of the light as passed on its creation.
+Setting the light radius to a value greater than this will result in an error.
+
+```lua
 light:getCanvas()
 ```
 

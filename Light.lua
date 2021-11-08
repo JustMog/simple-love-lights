@@ -6,18 +6,18 @@ local shadowMapShader = lg.newShader([[
 
     uniform float yResolution;
     uniform float alphaThreshold;
-	uniform float overlap = 7.0;
+	uniform float overlap;
 
 	vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) {
-		number distance = 1.0;
+		float distance = 1.0;
 		
 		// Iterate through the occluder map's y-axis.
 		for (number y = 0.0; y < yResolution; y++) {
 
 			// Rectangular to polar
 			vec2 norm = vec2(texture_coords.s, y / yResolution) * 2.0 - 1.0;
-			number theta = PI * 1.5 + norm.x * PI; 
-			number r = (1.0 + norm.y) * 0.5;
+			float theta = PI * 1.5 + norm.x * PI; 
+			float r = (1.0 + norm.y) * 0.5;
 
 			//coord which we will sample from occlude map
 			vec2 coord = vec2(-r * sin(theta), -r * cos(theta)) / 2.0 + 0.5;
@@ -45,9 +45,11 @@ local shadowMapShader = lg.newShader([[
 -- Shader for rendering blurred lights and shadows.
 local lightRenderShader = lg.newShader([[
 	#define PI 3.14
+
 	uniform float xResolution;
     uniform float falloff;
     uniform float steps;
+	uniform float radius;
 
 	//sample from the 1D distance map
 	number sample(vec2 coord, number r, Image u_texture) {
@@ -57,9 +59,9 @@ local lightRenderShader = lg.newShader([[
 	vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) {
 		// Transform rectangular to polar coordinates.
 		vec2 norm = texture_coords.st * 2.0 - 1.0;
-		number theta = atan(norm.y, norm.x);
-		number r = length(norm);	
-		number coord = (theta + PI) / (2.0 * PI);
+		float theta = atan(norm.y, norm.x);
+		float r = length(norm);	
+		float coord = (theta + PI) / (2.0 * PI);
 		
 		// The tex coordinate to sample our 1D lookup texture.
 		//always 0.0 on y axis
@@ -68,28 +70,13 @@ local lightRenderShader = lg.newShader([[
 		// The center tex coord, which gives us hard shadows.
 		number center = sample(tc, r, texture);        
 		
-		// Multiply the blur amount by our distance from center.
-		//this leads to more blurriness as the shadow "fades away"
-		number blur = (1./xResolution)  * smoothstep(0., 1., r); 
-		
-		// Use a simple gaussian blur.
-		number sum = 0.0;
-		sum += sample(vec2(tc.x - 4.0*blur, tc.y), r, texture) * 0.05;
-		sum += sample(vec2(tc.x - 3.0*blur, tc.y), r, texture) * 0.09;
-		sum += sample(vec2(tc.x - 2.0*blur, tc.y), r, texture) * 0.12;
-		sum += sample(vec2(tc.x - 1.0*blur, tc.y), r, texture) * 0.15;
-		
-		sum += center * 0.16;
-		sum += sample(vec2(tc.x + 1.0*blur, tc.y), r, texture) * 0.15;
-		sum += sample(vec2(tc.x + 2.0*blur, tc.y), r, texture) * 0.12;
-		sum += sample(vec2(tc.x + 3.0*blur, tc.y), r, texture) * 0.09;
-		sum += sample(vec2(tc.x + 4.0*blur, tc.y), r, texture) * 0.05;
-
-
-		// Sum of 1.0 -> in light, 0.0 -> in shadow.
 	 	// Multiply the summed amount by our distance, which gives us a radial falloff.
 
-		float a = sum * pow(smoothstep(1.0, 0.0, r) , falloff);
+		r /= radius / (xResolution / 2.0);
+		r = smoothstep(1.0, 0.0, r);
+		r = pow(r, falloff);
+		
+		float a = center * r;
 
         float stps = steps + 1;
 		if(steps > 0) a = floor(a * stps) /  stps;
@@ -134,13 +121,14 @@ function Light:updateCanvas(drawOccludersFn)
     self._shadowMapCanvas:renderTo(function() lg.clear() end)
     self._lightRenderCanvas:renderTo(function() lg.clear() end)
 
-    shadowMapShader:send("yResolution", size);
-    shadowMapShader:send("alphaThreshold", self.alphaThreshold);
-    shadowMapShader:send("overlap", self.overlap);
+    shadowMapShader:send("yResolution", size)
+    shadowMapShader:send("alphaThreshold", self.alphaThreshold)
+    shadowMapShader:send("overlap", self.overlap)
 
-    lightRenderShader:send("xResolution", size);
-    lightRenderShader:send("falloff", self.falloff);
-    lightRenderShader:send("steps", self.steps);
+    lightRenderShader:send("xResolution", size)
+	lightRenderShader:send("radius", self.radius)
+    lightRenderShader:send("falloff", self.falloff)
+    lightRenderShader:send("steps", self.steps)
 
     lg.push("all")
     lg.origin()
