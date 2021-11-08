@@ -50,10 +50,15 @@ local lightRenderShader = lg.newShader([[
     uniform float falloff;
     uniform float steps;
 	uniform float radius;
+	uniform float noise;
 
 	//sample from the 1D distance map
 	number sample(vec2 coord, number r, Image u_texture) {
 		return step(r, Texel(u_texture, coord).r);
+	}
+
+	float rand(float n){
+		return abs(sin(n * 999999));
 	}
 
 	vec4 effect(vec4 color, Image texture, vec2 texture_coords, vec2 screen_coords) {
@@ -77,6 +82,7 @@ local lightRenderShader = lg.newShader([[
 		r = pow(r, falloff);
 		
 		float a = center * r;
+		a += rand(rand(rand(coord))) * noise * a;
 
         float stps = steps + 1;
 		if(steps > 0) a = floor(a * stps) /  stps;
@@ -90,6 +96,7 @@ local Light = {
     alphaThreshold = 1,
     falloff = 1,
     steps = -1,
+	noise = 0.03,
 }
 Light.__index = Light
 
@@ -129,6 +136,7 @@ function Light:updateCanvas(drawOccludersFn)
 	lightRenderShader:send("radius", self.radius)
     lightRenderShader:send("falloff", self.falloff)
     lightRenderShader:send("steps", self.steps)
+	lightRenderShader:send("noise", self.noise)
 
     lg.push("all")
     lg.origin()
@@ -175,5 +183,6 @@ return setmetatable({
         Light.alphaThreshold = opts.alphaThreshold or Light.alphaThreshold
         Light.falloff = opts.falloff or Light.falloff
         Light.steps = opts.steps or Light.steps
+		Light.noise = opts.noise or Light.noise
     end,
 },{ __call = newLight })

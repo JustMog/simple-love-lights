@@ -66,6 +66,11 @@ At 1, it fades linearly. At less than 1 it fades more slowly.
 If set to -1, the light's power fades smoothly.
 Otherwise, sets the number of distinct "rings" of the same power.
 
+`noise [0.03]`
+Adds a small amount of noise to the light, can help to smooth out banding.
+Should be between 0 and 1, though values anything like as high as 1 aren't recommended.
+Recommended to set to 0 when using steps.
+
 All of these properties can be overriden for a specific light by simply setting e.g. light.steps = 8
 
 ```lua
