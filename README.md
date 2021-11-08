@@ -42,6 +42,7 @@ i.e.
     light.color = {1, 1, 1, 0.5} -- alpha optional, default 2
 ```
 
+
 ```lua
 Light.setDefaults(opts)
 ```
